@@ -1,5 +1,5 @@
-use std::{fs, io};
 use clap::Parser;
+use std::{fs, io};
 
 /// Verify json is valid or not
 #[derive(Parser, Debug)]
@@ -34,7 +34,7 @@ fn process_file(json_file: &str) {
     let data = fs::read_to_string(json_file).expect("Error in reading the file");
     match json::parse(&data) {
         Ok(_) => print!("true"),
-        Err(_) => print!("false"),
+        Err(err) => println!("false, {}", err),
     }
 }
 
@@ -46,11 +46,9 @@ fn process_dir(directory: &str) -> io::Result<()> {
 
     let mut entries = fs::read_dir(directory)?
         .map(|e| e.unwrap().path())
-        .filter(|p| {
-            match p.extension() {
-                Some(ext) => ext == "json",
-                None => false
-            }
+        .filter(|p| match p.extension() {
+            Some(ext) => ext == "json",
+            None => false,
         })
         .collect::<Vec<_>>();
 
@@ -59,9 +57,21 @@ fn process_dir(directory: &str) -> io::Result<()> {
     for entry in entries.iter() {
         let data = fs::read_to_string(entry).expect("Error in reading the file");
         match json::parse(&data) {
-            Ok(_) => println!("{:?}: true", entry.file_name().unwrap()),
-            Err(_) => println!("{:?}: false", entry.file_name().unwrap()),
+            Ok(_) => println!("{:?}: true", entry),
+            Err(err) => println!("{:?}: false, {}", entry, err),
         }
     }
+
+    let mut entries = fs::read_dir(directory)?
+        .map(|e| e.unwrap().path())
+        .filter(|e| e.is_dir())
+        .collect::<Vec<_>>();
+
+    entries.sort();
+
+    for entry in entries.iter() {
+        process_dir(entry.to_str().unwrap())?;
+    }
+
     Ok(())
 }
